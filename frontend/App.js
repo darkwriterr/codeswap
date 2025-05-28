@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,22 +6,26 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Appearance,
   Switch,
+  Keyboard,
   Animated,
-  ScrollView,
+  ScrollView
 } from 'react-native';
 import Checkbox from 'expo-checkbox';
+import { useNavigation } from '@react-navigation/native';
+import { Appearance } from 'react-native';
 
-export default function App() {
-  const [fullName, setFullName] = useState('');
+export default function SignUpScreen() {
+  const navigation = useNavigation();
+
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [knownLangs, setKnownLangs] = useState('');
-  const [desiredLangs, setDesiredLangs] = useState('');
-  const [agreeTerms, setAgreeTerms] = useState(false);
-  const [error, setError] = useState('');
+  const [wantedLangs, setWantedLangs] = useState('');
+  const [knownTags, setKnownTags] = useState([]);
+  const [wantedTags, setWantedTags] = useState([]);
+  const [agreed, setAgreed] = useState(false);
   const [darkMode, setDarkMode] = useState(Appearance.getColorScheme() === 'dark');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -50,52 +54,69 @@ export default function App() {
 
   const theme = darkMode ? styles.dark : styles.light;
 
-  const handleSignUp = () => {
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+  const handleEmailChange = (text) => {
+    setEmail(text);
+    if (text && !text.endsWith('@student.nhlstenden.com')) {
+      setEmailError('Email must end in @student.nhlstenden.com');
+    } else {
+      setEmailError('');
     }
-    if (!agreeTerms) {
-      setError('You must agree to the terms');
-      return;
+  };
+
+  const handleTagInput = (text, type) => {
+    if (text.endsWith(' ')) {
+      const tag = text.trim();
+      if (tag.length > 0) {
+        if (type === 'known') {
+          setKnownTags([...knownTags, tag]);
+          setKnownLangs('');
+        } else {
+          setWantedTags([...wantedTags, tag]);
+          setWantedLangs('');
+        }
+      }
+    } else {
+      if (type === 'known') setKnownLangs(text);
+      else setWantedLangs(text);
     }
-    setError('');
-    console.log('Signed up!');
+  };
+
+  const renderTags = (tags) => {
+    return tags.map((tag, index) => (
+      <View key={index} style={styles.tag}>
+        <Text style={styles.tagText}>{tag}</Text>
+      </View>
+    ));
   };
 
   return (
-    <Animated.ScrollView style={{ flex: 1, backgroundColor }}>
-      <View style={styles.container}>
-        <Switch
-          value={darkMode}
-          onValueChange={setDarkMode}
-          style={{ alignSelf: 'flex-end', marginBottom: 10 }}
-        />
+    <Animated.View style={[styles.container, { backgroundColor }]}>
+      <Switch
+        value={darkMode}
+        onValueChange={setDarkMode}
+        style={{ alignSelf: 'flex-end', marginBottom: 10 }}
+      />
 
-        <Animated.View style={{ opacity: fadeAnim }}>
+      <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
+        <ScrollView keyboardShouldPersistTaps="handled">
           <Image
-            source={{ uri: 'https://reactnative.dev/img/tiny_logo.png' }}
+            source={require('../assets/logo.png')}
             style={styles.logo}
+            resizeMode="contain"
           />
 
-          <Text style={[styles.title, theme.text]}>Create Your Account</Text>
-
-          <TextInput
-            style={[styles.input, theme.input]}
-            placeholder="Full Name"
-            placeholderTextColor={darkMode ? "#999" : "#555"}
-            value={fullName}
-            onChangeText={setFullName}
-          />
+          <Text style={[styles.title, theme.text]}>Create Account</Text>
 
           <TextInput
             style={[styles.input, theme.input]}
             placeholder="Email"
             placeholderTextColor={darkMode ? "#999" : "#555"}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={handleEmailChange}
+            autoCapitalize="none"
             keyboardType="email-address"
           />
+          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
           <TextInput
             style={[styles.input, theme.input]}
@@ -106,77 +127,77 @@ export default function App() {
             secureTextEntry
           />
 
+          <Text style={[theme.text, styles.label]}>Known Programming Languages</Text>
+          <View style={styles.tagContainer}>
+            {renderTags(knownTags)}
+          </View>
           <TextInput
             style={[styles.input, theme.input]}
-            placeholder="Confirm Password"
-            placeholderTextColor={darkMode ? "#999" : "#555"}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
-
-          <TextInput
-            style={[styles.input, theme.input]}
-            placeholder="Known Programming Languages"
+            placeholder="e.g. Java "
             placeholderTextColor={darkMode ? "#999" : "#555"}
             value={knownLangs}
-            onChangeText={setKnownLangs}
+            onChangeText={(text) => handleTagInput(text, 'known')}
+            autoCapitalize="none"
           />
 
+          <Text style={[theme.text, styles.label]}>Languages You Want to Learn</Text>
+          <View style={styles.tagContainer}>
+            {renderTags(wantedTags)}
+          </View>
           <TextInput
             style={[styles.input, theme.input]}
-            placeholder="Languages You Want to Learn"
+            placeholder="e.g. Python "
             placeholderTextColor={darkMode ? "#999" : "#555"}
-            value={desiredLangs}
-            onChangeText={setDesiredLangs}
+            value={wantedLangs}
+            onChangeText={(text) => handleTagInput(text, 'wanted')}
+            autoCapitalize="none"
           />
 
           <View style={styles.termsContainer}>
             <Checkbox
-              value={agreeTerms}
-              onValueChange={setAgreeTerms}
-              color={agreeTerms ? '#007bff' : undefined}
+              value={agreed}
+              onValueChange={setAgreed}
+              color={agreed ? '#007bff' : undefined}
               style={{ marginRight: 6 }}
             />
-            <Text style={[theme.text, { flex: 1 }]}>
+            <Text style={theme.text}>
               I agree to the{' '}
               <Text style={styles.link}>Terms of Service</Text> and{' '}
               <Text style={styles.link}>Privacy Policy</Text>
             </Text>
           </View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate('Login')}
+            disabled={!email || emailError || !password || !agreed}
+          >
             <Text style={styles.buttonText}>Sign Up</Text>
           </TouchableOpacity>
-        </Animated.View>
-      </View>
-    </Animated.ScrollView>
+        </ScrollView>
+      </Animated.View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 24,
-    paddingTop: 100, // Moved content lower
+    paddingTop: 100,
     paddingBottom: 60,
-    flexGrow: 1,
-    justifyContent: 'flex-start',
+    flex: 1,
   },
   light: {
-    background: { backgroundColor: '#f2f4f8' },
     text: { color: '#333' },
     input: { backgroundColor: '#fff', color: '#000' },
   },
   dark: {
-    background: { backgroundColor: '#1e1e1e' },
     text: { color: '#fff' },
     input: { backgroundColor: '#2a2a2a', color: '#fff' },
   },
   logo: {
-    width: 60,
-    height: 60,
+    width: 100,
+    height: 100,
     alignSelf: 'center',
     marginBottom: 20,
   },
@@ -199,27 +220,46 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 80,
+    marginTop: 20,
   },
   buttonText: {
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
   },
-  error: {
+  errorText: {
     color: 'red',
-    marginTop: 6,
     marginBottom: 10,
-    textAlign: 'center',
   },
   termsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
+    flexWrap: 'wrap',
   },
   link: {
     color: '#007bff',
     textDecorationLine: 'underline',
+  },
+  label: {
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  tagContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+  },
+  tag: {
+    backgroundColor: '#007bff',
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  tagText: {
+    color: '#fff',
+    fontSize: 14,
   },
 });
