@@ -1,40 +1,21 @@
-import React, { useState } from 'react';
-import { View, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React from 'react';
+import { View, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 
-export default function AvatarUploader() {
-  const [image, setImage] = useState<string | null>(null);
+type AvatarUploaderProps = {
+  avatarUrl: string | null;
+  onPress: () => void;
+};
 
-  const pickImage = async () => {
-    // Ask for permission
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Media access is needed to upload your profile picture.');
-      return;
-    }
-
-    // Open image picker
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1], // Square crop
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets.length > 0) {
-      setImage(result.assets[0].uri);
-    }
-  };
-
+export default function AvatarUploader({ avatarUrl, onPress }: AvatarUploaderProps) {
   return (
     <View style={styles.container}>
       <View style={styles.avatarWrapper}>
         <Image
-          source={{ uri: image || 'https://placehold.co/100x100' }}
+          source={{ uri: avatarUrl || 'https://placehold.co/100x100' }}
           style={styles.avatar}
         />
-        <TouchableOpacity style={styles.iconButton} onPress={pickImage}>
+        <TouchableOpacity style={styles.iconButton} onPress={onPress}>
           <Ionicons name="camera" size={16} color="#fff" />
         </TouchableOpacity>
       </View>

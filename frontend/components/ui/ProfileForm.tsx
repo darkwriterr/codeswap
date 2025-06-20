@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 
 import AvatarUploader from './AvatarUploader';
 import ProfileBioInput from './ProfileBioInput';
@@ -8,26 +9,70 @@ import LanguageSelector from './LanguageSelector';
 import LearningStyleSelector from './LearningStyleSelector';
 import AvailabilityInput from './AvailabilityInput';
 
+import { useProfile } from '../../contexts/ProfileContext';
+
 export default function ProfileForm() {
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [bio, setBio] = useState('');
-  const [languagesKnown, setLanguagesKnown] = useState<string[]>([]);
-  const [languagesLearning, setLanguagesLearning] = useState<string[]>([]);
-  const [learningStyle, setLearningStyle] = useState('');
-  const [availability, setAvailability] = useState('');
-
   const router = useRouter();
+  const { profile, updateProfile } = useProfile();
 
-  // TODO: implement real avatar picker
-  const handleAvatarPress = () => {
-    // here you can implement image picker logic
-  };
+  const [avatar, setAvatar] = useState<string | null>(profile.avatar);
+  const [bio, setBio] = useState(profile.bio);
+  const [languagesKnown, setLanguagesKnown] = useState(profile.languagesKnown);
+  const [languagesLearning, setLanguagesLearning] = useState(profile.languagesLearning);
+  const [learningStyle, setLearningStyle] = useState(profile.learningStyle);
+  const [availability, setAvailability] = useState(profile.availability);
+
+  useEffect(() => {
+    setAvatar(profile.avatar);
+    setBio(profile.bio);
+    setLanguagesKnown(profile.languagesKnown);
+    setLanguagesLearning(profile.languagesLearning);
+    setLearningStyle(profile.learningStyle);
+    setAvailability(profile.availability);
+  }, [profile]);
 
   const toggleLang = (arr: string[], lang: string, setter: (v: string[]) => void) => {
-    setter(arr.includes(lang) ? arr.filter(l => l !== lang) : [...arr, lang]);
+    if (arr.includes(lang)) {
+      setter(arr.filter(l => l !== lang));
+    } else {
+      setter([...arr, lang]);
+    }
   };
 
-  const goToHome = () => {
+const handleAvatarPress = async () => {
+  const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permissionResult.granted) {
+    Alert.alert("Permission required", "Please allow photo library access.");
+    return;
+  }
+
+  const pickerResult = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 1,
+  });
+
+  if (!pickerResult.canceled && pickerResult.assets?.length > 0) {
+    const selected = pickerResult.assets[0].uri;
+    setAvatar(selected);
+    updateProfile({ avatar: selected });
+  }
+};
+
+  const saveProfile = () => {
+    updateProfile({
+      avatar,
+      bio,
+      languagesKnown,
+      languagesLearning,
+      learningStyle,
+      availability,
+    });
+  };
+
+  const goToDashboard = () => {
+    saveProfile();
     router.push('/');
   };
 
@@ -64,23 +109,29 @@ export default function ProfileForm() {
       >
         Let others know what you can teach and what you want to learn
       </Text>
+
       <AvatarUploader avatarUrl={avatar} onPress={handleAvatarPress} />
+
       <ProfileBioInput value={bio} onChange={setBio} />
+
       <LanguageSelector
         selected={languagesKnown}
         onSelect={lang => toggleLang(languagesKnown, lang, setLanguagesKnown)}
         label="Programming languages you know"
       />
+
       <LanguageSelector
         selected={languagesLearning}
         onSelect={lang => toggleLang(languagesLearning, lang, setLanguagesLearning)}
         label="Programming languages you want to learn"
       />
+
       <LearningStyleSelector value={learningStyle} onSelect={setLearningStyle} />
+
       <AvailabilityInput value={availability} onChange={setAvailability} />
 
       <TouchableOpacity
-        onPress={goToHome}
+        onPress={goToDashboard}
         style={{
           backgroundColor: '#405be4',
           borderRadius: 12,
@@ -96,7 +147,7 @@ export default function ProfileForm() {
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={goToHome}
+        onPress={saveProfile}
         style={{
           borderColor: '#405be4',
           borderWidth: 2,
