@@ -2,33 +2,46 @@ import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from "react-native";
 import Header from "../../components/ui/Header";
 import { Redirect, useRouter } from "expo-router";
-import { isUserLoggedIn, getUserName, logoutUser } from "../../lib/auth";
-
-const router = useRouter();
+import { getCredentials, clearCredentials } from "../../lib/auth";
+import { getInformation } from "../../lib/api";
 
 export default function HomeScreen() {
-  const [loggedIn, setLoggedIn] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(false);
   const [name, setName] = useState<string | null>(null);
+  const [streak, setStreak] = useState<number>(0);
   const router = useRouter();
 
   useEffect(() => {
-    const checkLogin = async () => {
-      const logged = await isUserLoggedIn();
-      const username = await getUserName();
-      setLoggedIn(logged);
-      setName(username);
-      setChecking(false);
+    const fetchData = async () => {
+      const { email, password } = await getCredentials();
+      if (!email || !password) {
+        setLoggedIn(false);
+        setChecking(false);
+        return;
+      }
+
+      try {
+        const result = await getInformation(email, password);
+        setName(result.data?.fullName ?? "User");
+        setStreak(result.data?.streak ?? 0);
+        setLoggedIn(true);
+      } catch (e) {
+        console.error("Failed to get user info:", e);
+        setLoggedIn(false);
+      } finally {
+        setChecking(false);
+      }
     };
 
-    checkLogin();
+    fetchData();
   }, []);
 
   if (checking) return null;
-  if (!loggedIn) return <Redirect href="/(auth)/sign-up" />;
+  if (!loggedIn) return <Redirect href="/(auth)/login" />;
 
   const handleLogout = async () => {
-    await logoutUser();
+    await clearCredentials();
     router.replace("/(auth)/login");
   };
 
@@ -37,13 +50,15 @@ export default function HomeScreen() {
       <Header />
       <ScrollView contentContainerStyle={styles.container}>
 
+        {/* Welcome & Streak */}
         <View style={styles.card}>
-          <Text style={styles.welcomeText}>Welcome back, {name || "User"}!</Text>
-          <Text style={styles.streak}>🔥 Current streak: <Text style={{ color: '#5A67D8' }}>5 days</Text></Text>
+          <Text style={styles.welcomeText}>Welcome back, {name}!</Text>
+          <Text style={styles.streak}>🔥 Current streak: <Text style={{ color: '#5A67D8' }}>{streak} days</Text></Text>
         </View>
 
+        {/* Today's Session */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Today's Session</Text>
+          <Text style={styles.sectionTitle}>Today&#39;s Session</Text>
           <Text style={styles.time}>3:30 PM</Text>
           <Text style={styles.with}>With <Text style={styles.bold}>Alex Johnson</Text></Text>
           <TouchableOpacity style={styles.joinButton}>
@@ -51,6 +66,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Daily Quiz */}
         <View style={[styles.card, styles.quizCard]}>
           <View>
             <Text style={styles.quizTitle}>⚡ Daily Quiz</Text>
@@ -58,9 +74,10 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity onPress={() => router.push('/quiz')} style={styles.startButton}>
             <Text style={styles.startText}>Start Now</Text>
-            </TouchableOpacity>
+          </TouchableOpacity>
         </View>
 
+        {/* Quick Match */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>🎙 Quick Match</Text>
 
@@ -93,6 +110,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Upcoming Sessions */}
         <View style={styles.card}>
           <View style={styles.upcomingHeader}>
             <Text style={styles.sectionTitle}>📅 Upcoming Sessions</Text>
@@ -130,6 +148,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Log Out */}
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>

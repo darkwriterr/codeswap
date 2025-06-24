@@ -8,9 +8,10 @@ import {
     StyleSheet,
     Alert
 } from "react-native";
-import Checkbox from "expo-checkbox";
+import { Checkbox } from "expo-checkbox";
 import { useRouter } from "expo-router";
-import { loginUser, saveUserName, saveCredentials } from "@/lib/auth";
+import { saveCredentials } from "@/lib/auth";
+import { register } from "@/lib/api";
 
 export default function SignUpScreen() {
     const router = useRouter();
@@ -21,10 +22,6 @@ export default function SignUpScreen() {
     const [agreed, setAgreed] = useState(false);
 
     const handleSignUp = async () => {
-
-
-
-
         if (!fullName || !email || !password || !confirmPassword) {
             Alert.alert("Please fill in all fields.");
             return;
@@ -41,16 +38,18 @@ export default function SignUpScreen() {
         }
 
         try {
+            await register(email, password, fullName);
             await saveCredentials(email, password);
-            await loginUser("mock-token");
-            await saveUserName(fullName);
-            Alert.alert("Account created!");
-            router.push("/");
+            router.replace("/");
         } catch (err) {
-            Alert.alert("Something went wrong");
+            console.error(err);
+            let errorMessage = "Registration failed.";
+            if (err && typeof err === "object" && "message" in err) {
+                errorMessage = `Registration failed: ${(err as { message: string }).message}`;
+            }
+            Alert.alert(errorMessage);
         }
     };
-
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -114,7 +113,7 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
     container: {
         padding: 24,
-        backgroundColor: "#000", // черный фон
+        backgroundColor: "#000",
         flexGrow: 1,
         justifyContent: "center"
     },

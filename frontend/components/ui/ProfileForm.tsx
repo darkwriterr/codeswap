@@ -9,27 +9,29 @@ import LanguageSelector from './LanguageSelector';
 import LearningStyleSelector from './LearningStyleSelector';
 import AvailabilityInput from './AvailabilityInput';
 
-import { useProfile } from '../../contexts/ProfileContext';
+interface ProfileFormProps {
+  initialData: any;
+  onSave: (data: any) => Promise<void>;
+}
 
-export default function ProfileForm() {
+export default function ProfileForm({ initialData, onSave }: ProfileFormProps) {
   const router = useRouter();
-  const { profile, updateProfile } = useProfile();
 
-  const [avatar, setAvatar] = useState<string | null>(profile.avatar);
-  const [bio, setBio] = useState(profile.bio);
-  const [languagesKnown, setLanguagesKnown] = useState(profile.languagesKnown);
-  const [languagesLearning, setLanguagesLearning] = useState(profile.languagesLearning);
-  const [learningStyle, setLearningStyle] = useState(profile.learningStyle);
-  const [availability, setAvailability] = useState(profile.availability);
+  const [avatar, setAvatar] = useState<string | null>(initialData.avatar ?? null);
+  const [bio, setBio] = useState(initialData.bio ?? '');
+  const [languagesKnown, setLanguagesKnown] = useState(initialData.languagesKnown ?? []);
+  const [languagesLearning, setLanguagesLearning] = useState(initialData.languagesLearning ?? []);
+  const [learningStyle, setLearningStyle] = useState(initialData.learningStyle ?? '');
+  const [availability, setAvailability] = useState(initialData.availability ?? '');
 
   useEffect(() => {
-    setAvatar(profile.avatar);
-    setBio(profile.bio);
-    setLanguagesKnown(profile.languagesKnown);
-    setLanguagesLearning(profile.languagesLearning);
-    setLearningStyle(profile.learningStyle);
-    setAvailability(profile.availability);
-  }, [profile]);
+    setAvatar(initialData.avatar ?? null);
+    setBio(initialData.bio ?? '');
+    setLanguagesKnown(initialData.languagesKnown ?? []);
+    setLanguagesLearning(initialData.languagesLearning ?? []);
+    setLearningStyle(initialData.learningStyle ?? '');
+    setAvailability(initialData.availability ?? '');
+  }, [initialData]);
 
   const toggleLang = (arr: string[], lang: string, setter: (v: string[]) => void) => {
     if (arr.includes(lang)) {
@@ -39,40 +41,45 @@ export default function ProfileForm() {
     }
   };
 
-const handleAvatarPress = async () => {
-  const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permissionResult.granted) {
-    Alert.alert("Permission required", "Please allow photo library access.");
-    return;
-  }
+  const handleAvatarPress = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Permission required", "Please allow photo library access.");
+      return;
+    }
 
-  const pickerResult = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 1,
-  });
-
-  if (!pickerResult.canceled && pickerResult.assets?.length > 0) {
-    const selected = pickerResult.assets[0].uri;
-    setAvatar(selected);
-    updateProfile({ avatar: selected });
-  }
-};
-
-  const saveProfile = () => {
-    updateProfile({
-      avatar,
-      bio,
-      languagesKnown,
-      languagesLearning,
-      learningStyle,
-      availability,
+    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
     });
+
+    if (!pickerResult.canceled && pickerResult.assets?.length > 0) {
+      const selected = pickerResult.assets[0].uri;
+      setAvatar(selected);
+    }
   };
 
-  const goToDashboard = () => {
-    saveProfile();
+  const saveProfile = async () => {
+    try {
+      await onSave({
+        avatar,
+        bio,
+        languagesKnown,
+        languagesLearning,
+        learningStyle,
+        availability,
+      });
+      Alert.alert("Profile saved!");
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Failed to save profile.");
+    }
+  };
+
+  const goToDashboard = async () => {
+    await saveProfile();
     router.push('/');
   };
 

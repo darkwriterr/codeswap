@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,45 +6,62 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const questions = [
-  {
-    question: "Which language is primarily used for web front-end development?",
-    options: ["Python", "Java", "JavaScript", "C++"],
-    correct: 2,
-  },
-  {
-    question: "Which language is primarily used for Android development?",
-    options: ["Swift", "Kotlin", "JavaScript", "Ruby"],
-    correct: 1,
-  },
-  {
-    question: "What does CPU stand for?",
-    options: [
-      "Central Processing Unit",
-      "Computer Personal Unit",
-      "Central Peripheral Unit",
-      "Control Processing Unit",
-    ],
-    correct: 0,
-  },
-];
-
 export default function QuizScreen() {
+  const [questions, setQuestions] = useState<any[]>([]);
   const [current, setCurrent] = useState(0);
   const [score, setScore] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [finished, setFinished] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+  const fetchQuiz = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/generate`);
+      const data = await res.json();
+      if (Array.isArray(data.questions)) {
+        console.log('Received questions:', data.questions);
+        setQuestions(data.questions);
+      } else {
+        setQuestions(data);
+        console.log('Received questions:', data);
+      }
+    } catch (err) {
+      console.error(err);
+      return (
+        <View style={styles.container}>
+          <Text style={styles.errorTitle}>⚠️ Oops!</Text>
+          <Text style={styles.errorMessage}>An error occurred: {error}</Text>
+          <Text style={styles.errorSuggestion}>Please try again later.</Text>
+          <TouchableOpacity style={styles.resetButton} onPress={fetchQuiz}>
+            <Text style={styles.resetText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+    );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQuiz();
+  }, []);
 
   const handleAnswer = (index: number) => {
     if (selected !== null) return;
     setSelected(index);
     if (index === questions[current].correct) {
-      setScore(prev => prev + 1);
+      setScore((prev) => prev + 1);
     }
 
     setTimeout(() => {
@@ -54,7 +71,7 @@ export default function QuizScreen() {
         useNativeDriver: true,
       }).start(() => {
         if (current + 1 < questions.length) {
-          setCurrent(prev => prev + 1);
+          setCurrent((prev) => prev + 1);
         } else {
           setFinished(true);
         }
@@ -75,9 +92,31 @@ export default function QuizScreen() {
     setSelected(null);
     setFinished(false);
     fadeAnim.setValue(1);
+    fetchQuiz();
   };
 
-  const progressWidth = ((current + 1) / questions.length) * (SCREEN_WIDTH - 40);
+  const progressWidth = questions.length
+    ? ((current + 1) / questions.length) * (SCREEN_WIDTH - 40)
+    : 0;
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#5A67D8" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.error}>{error}</Text>
+        <TouchableOpacity style={styles.resetButton} onPress={fetchQuiz}>
+          <Text style={styles.resetText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (finished) {
     const percent = Math.round((score / questions.length) * 100);
@@ -100,7 +139,6 @@ export default function QuizScreen() {
 
   return (
     <View style={styles.container}>
-    
       <View style={styles.progressBar}>
         <View style={[styles.progressBarFill, { width: progressWidth }]} />
       </View>
@@ -110,7 +148,7 @@ export default function QuizScreen() {
           {current + 1}. {questions[current].question}
         </Text>
 
-        {questions[current].options.map((opt, idx) => {
+        {questions[current].options.map((opt: string, idx: number) => {
           let bg = '#5A67D8';
           if (selected !== null) {
             if (idx === questions[current].correct) bg = '#48BB78';
@@ -220,4 +258,30 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  error: {
+    fontSize: 18,
+    color: '#E53E3E',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+  fontSize: 26,
+  fontWeight: '700',
+  color: '#E53E3E',
+  textAlign: 'center',
+  marginBottom: 10,
+},
+errorMessage: {
+  fontSize: 18,
+  color: '#E53E3E',
+  textAlign: 'center',
+  marginBottom: 8,
+},
+errorSuggestion: {
+  fontSize: 16,
+  color: '#4A5568',
+  textAlign: 'center',
+  marginBottom: 20,
+},
+
 });
