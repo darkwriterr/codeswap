@@ -3,6 +3,9 @@ import multer from "multer";
 import axios from "axios";
 import cors from "cors";
 import dotenv from "dotenv";
+import session from "express-session";
+import passport from "passport";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { auth, storage, db } from "./config/firebaseConfig.js";
 import {
   createUserWithEmailAndPassword,
@@ -221,6 +224,57 @@ app.get("/generate", (req, res) => {
   } else {
     res.status(503).json({ error: "Quiz is being generated. Try again soon." });
   }
+});
+
+app.use(session({ secret: "codeswap_secret", resave: false, saveUninitialized: false }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: "/auth/google/callback",
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    const email = profile.emails[0].value;
+    const fullName = profile.displayName;
+    const userRef = doc(db, "users", email);
+    await setDoc(userRef, {
+      email,
+      fullName,
+      provider: "google",
+      lastLogin: new Date().toISOString()
+    }, { merge: true });
+    done(null, { email, fullName });
+  } catch (err) {
+    done(err, null);
+  }
+}));
+
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj, done) => done(null, obj));
+
+app.get("/auth/google", passport.authenticate("google", {
+  scope: ["profile", "email"]
+}));
+
+app.get("/auth/google/callback", passport.authenticate("google", {
+  session: false,
+  failureRedirect: "/auth/google/failure"
+}), (req, res) => {
+  const user = req.user;
+  res.json({
+    message: "Google login successful",
+    user: {
+      email: user.email,
+      fullName: user.fullName,
+      provider: "google"
+    }
+  });
+});
+
+app.get("/auth/google/failure", (req, res) => {
+  res.status(401).json({ error: "Google authentication failed" });
 });
 
 const PORT = process.env.PORT || 3000;
