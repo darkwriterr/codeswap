@@ -263,14 +263,9 @@ app.get("/auth/google/callback", passport.authenticate("google", {
   failureRedirect: "/auth/google/failure"
 }), (req, res) => {
   const user = req.user;
-  res.json({
-    message: "Google login successful",
-    user: {
-      email: user.email,
-      fullName: user.fullName,
-      provider: "google"
-    }
-  });
+
+    const redirectUrl = `codeswap://login-success?email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.fullName)}&provider=google`;
+    return res.redirect(redirectUrl);
 });
 
 app.get("/auth/google/failure", (req, res) => {
