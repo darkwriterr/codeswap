@@ -20,6 +20,8 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
+  collection,
 } from "firebase/firestore";
 
 dotenv.config();
@@ -223,6 +225,32 @@ app.get("/generate", (req, res) => {
     refillCache();
   } else {
     res.status(503).json({ error: "Quiz is being generated. Try again soon." });
+  }
+});
+
+app.get("/users/swipe", async (req, res) => {
+  try {
+    const usersRef = collection(db, "users");
+    const snapshot = await getDocs(usersRef);
+
+    const users = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(user => user.email !== req.query.excludeEmail)
+      .map(user => ({
+        id: user.id,
+        fullName: user.fullName,
+        avatar: user.avatar || null,
+        bio: user.bio || "",
+        learningStyle: user.learningStyle || "",
+        languagesKnown: user.languagesKnown || [],
+        languagesLearning: user.languagesLearning || [],
+        availability: user.availability || ""
+      }));
+
+    res.json(users);
+  } catch (err) {
+    console.error("Error fetching users for swipe:", err);
+    res.status(500).json({ error: "Failed to load users for swipe." });
   }
 });
 
