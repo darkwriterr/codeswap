@@ -1,11 +1,13 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "codeswap",
+    "slug": "codeswap",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "codeswap",
+    "platforms": ["ios", "android"],
+    "deepLinks": ["codeswap://"],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

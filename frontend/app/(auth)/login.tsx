@@ -5,30 +5,46 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert
+  View,
+  ActivityIndicator,
+  Linking
 } from "react-native";
 import { useRouter } from "expo-router";
-import { saveCredentials } from "../../lib/auth";
-import { login } from "../../lib/api";
+import { saveCredentials } from "@/lib/auth";
+import { login } from "@/lib/api";
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleLogin = async () => {
+    setError("");
     if (!email || !password) {
-      Alert.alert("Please fill in all fields.");
-      return;
+      return setError("Please fill in all fields.");
     }
 
     try {
+      setLoading(true);
       await login(email, password);
       await saveCredentials(email, password);
       router.replace("/");
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Incorrect email or password.");
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err.message || "Login failed.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const GOOGLE_OAUTH_URL = `${process.env.EXPO_PUBLIC_API_URL || "https://your-backend.com"}/auth/google`;
+      await Linking.openURL(GOOGLE_OAUTH_URL);
+    } catch {
+      setError("Could not open Google login.");
     }
   };
 
@@ -36,6 +52,8 @@ export default function LoginScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>CodeSwap</Text>
       <Text style={styles.subtitle}>Welcome back</Text>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <TextInput
         placeholder="Email"
@@ -56,17 +74,32 @@ export default function LoginScreen() {
 
       <TouchableOpacity
         style={styles.forgotLink}
-        onPress={() => Alert.alert("Redirect to password reset page")}
+        onPress={() => setError("Reset password coming soon.")}
       >
         <Text style={styles.forgotText}>Forgot password?</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
+      <TouchableOpacity
+        style={[styles.button, loading && { opacity: 0.6 }]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Login</Text>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.googleButton}
+        onPress={handleGoogleLogin}
+      >
+        <Text style={styles.buttonText}>Continue with Google</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => router.push("/(auth)/sign-up")}>
-        <Text style={styles.link}>Do not have an account? Sign up</Text>
+        <Text style={styles.link}>Don't have an account? Sign up</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -115,6 +148,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12
   },
+  googleButton: {
+    backgroundColor: "#db4437",
+    padding: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 12
+  },
   buttonText: {
     color: "#fff",
     fontWeight: "bold"
@@ -123,5 +163,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#60a5fa",
     textDecorationLine: "underline"
+  },
+  error: {
+    backgroundColor: "#dc2626",
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 12,
+    color: "#fff",
+    textAlign: "center"
   }
 });
