@@ -254,6 +254,26 @@ app.get("/users/swipe", async (req, res) => {
   }
 });
 
+app.post("/get_information", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "Missing credentials" });
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const uid = userCredential.user.uid;
+
+    const userRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) return res.status(404).json({ error: "User not found" });
+
+    res.json({ message: "Data received", data: { id: uid, ...userSnap.data() } });
+  } catch (e) {
+    res.status(401).json({ error: "Invalid email or password" });
+  }
+});
+
+
 app.get("/forum/topics", async (req, res) => {
   try {
     const topicsRef = collection(db, "topics");
