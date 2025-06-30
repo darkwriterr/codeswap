@@ -254,6 +254,69 @@ app.get("/users/swipe", async (req, res) => {
   }
 });
 
+app.get("/forum/topics", async (req, res) => {
+  try {
+    const topicsRef = collection(db, "topics");
+    const snapshot = await getDocs(topicsRef);
+    const topics = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    res.json(topics);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load topics." });
+  }
+});
+
+app.post("/forum/topics", async (req, res) => {
+  const { title, authorId, authorName, authorAvatar } = req.body;
+  if (!title || !authorId) return res.status(400).json({ error: "Missing fields" });
+  try {
+    const topicRef = await addDoc(collection(db, "topics"), {
+      title,
+      authorId,
+      authorName,
+      authorAvatar: authorAvatar || null,
+      createdAt: new Date().toISOString(),
+    });
+    res.json({ id: topicRef.id });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to create topic" });
+  }
+});
+
+app.get("/forum/topics/:id", async (req, res) => {
+  try {
+    const docRef = doc(db, "topics", req.params.id);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return res.status(404).json({ error: "Topic not found" });
+
+    const commentsRef = collection(db, "topics", req.params.id, "comments");
+    const commentSnap = await getDocs(commentsRef);
+    const comments = commentSnap.docs.map(c => ({ id: c.id, ...c.data() }))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+    res.json({ topic: { id: docSnap.id, ...docSnap.data() }, comments });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load topic" });
+  }
+});
+
+app.post("/forum/topics/:id/comments", async (req, res) => {
+  const { authorId, authorName, authorAvatar, text } = req.body;
+  if (!authorId || !text) return res.status(400).json({ error: "Missing fields" });
+  try {
+    await addDoc(collection(db, "topics", req.params.id, "comments"), {
+      authorId,
+      authorName,
+      authorAvatar: authorAvatar || null,
+      text,
+      createdAt: new Date().toISOString(),
+    });
+    res.json({ message: "Comment added" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to add comment" });
+  }
+});
+
 app.use(session({ secret: "codeswap_secret", resave: false, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
