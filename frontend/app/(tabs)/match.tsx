@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,74 +7,67 @@ import {
   TouchableOpacity,
   Dimensions,
   SafeAreaView,
+  ActivityIndicator,
+  Animated,
 } from 'react-native';
 import Swiper from 'react-native-deck-swiper';
 import { Ionicons, AntDesign, Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { getCredentials } from '../../lib/auth';
 
 const { width, height } = Dimensions.get('window');
 
-type Profile = {
-  id: number;
-  name: string;
-  skills: string[];
-  bio: string;
-  availability: string;
-  interests: string[];
-  avatar: string;
-};
-
-const profilesData: Profile[] = [
-  {
-    id: 1,
-    name: 'Alex Kim',
-    skills: ['Python', 'JavaScript', 'C++', 'Learning React', 'Advanced JS'],
-    bio: 'Full-stack enthusiast looking for a React partner.',
-    availability: 'Available Wed & Fri evenings',
-    interests: ['Python', 'JavaScript'],
-    avatar: 'https://randomuser.me/api/portraits/men/75.jpg',
-  },
-  {
-    id: 2,
-    name: 'Maria Lopez',
-    skills: ['Java', 'Spring', 'SQL'],
-    bio: 'Backend dev ready to collab on DB projects.',
-    availability: 'Weekends',
-    interests: ['Java', 'SQL'],
-    avatar: 'https://randomuser.me/api/portraits/women/65.jpg',
-  },
-  {
-    id: 3,
-    name: 'John Doe',
-    skills: ['React Native', 'TypeScript'],
-    bio: 'Frontend lover, let\'s build!',
-    availability: 'Mon & Thu afternoons',
-    interests: ['React Native'],
-    avatar: 'https://randomuser.me/api/portraits/men/55.jpg',
-  },
-  {
-    id: 4,
-    name: 'Emma Brown',
-    skills: ['Go', 'Microservices'],
-    bio: 'Cloud engineer, scalable systems.',
-    availability: 'Flexible evenings',
-    interests: ['Go'],
-    avatar: 'https://randomuser.me/api/portraits/women/52.jpg',
-  },
-  {
-    id: 5,
-    name: 'Lucas Smith',
-    skills: ['Rust', 'Blockchain'],
-    bio: 'Smart contracts and crypto tech.',
-    availability: 'Weekends',
-    interests: ['Rust'],
-    avatar: 'https://randomuser.me/api/portraits/men/88.jpg',
-  },
+const LANG_COLORS = [
+  '#A5B4FC', // light indigo
+  '#F87171', // red
+  '#FBBF24', // yellow
+  '#6EE7B7', // green
+  '#38BDF8', // blue
+  '#F472B6', // pink
+  '#FACC15', // gold
+  '#A3E635', // lime
+  '#FCD34D', // amber
+  '#C084FC', // violet
 ];
+
+type Profile = {
+  id: string;
+  fullName: string;
+  avatar: string | null;
+  bio: string;
+  learningStyle: string;
+  languagesKnown: string[];
+  languagesLearning: string[];
+  availability: string;
+};
 
 export default function MatchScreen() {
   const swiperRef = useRef<Swiper<any>>(null);
-  const [profiles, setProfiles] = useState(profilesData);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const { email } = await getCredentials();
+        if (!email) {
+          setProfiles([]);
+          setLoading(false);
+          return;
+        }
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL || "https://your-backend.com";
+        const res = await fetch(`${apiUrl}/users/swipe?excludeEmail=${encodeURIComponent(email)}`);
+        const data = await res.json();
+        setProfiles(data);
+      } catch (e) {
+        setProfiles([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const handleSwiped = useCallback(() => {
     setCurrentIndex((prev) => prev + 1);
@@ -92,57 +85,119 @@ export default function MatchScreen() {
     }
   };
 
-interface RenderCardProps {
-    profile: Profile;
-}
+  // Цвет для языка по индексу (чтобы теги были разные)
+  const getLangColor = (idx: number) =>
+    LANG_COLORS[idx % LANG_COLORS.length];
 
-const renderCard = (profile: Profile | null): React.ReactElement | null => {
+  const renderCard = (profile: Profile | null): React.ReactElement | null => {
     if (!profile) return null;
     return (
-        <View style={styles.card}>
-            <Image source={{ uri: profile.avatar }} style={styles.avatar} />
-            <Text style={styles.name}>{profile.name}</Text>
+      <Animated.View style={styles.card}>
+        <LinearGradient
+          colors={['#6366F1', '#818CF8', '#fff']}
+          start={{ x: 0.1, y: 0.2 }}
+          end={{ x: 0.7, y: 0.9 }}
+          style={styles.gradient}
+        />
+        <View style={styles.cardInner}>
+          <View style={styles.avatarWrap}>
+            {profile.avatar ? (
+              <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.placeholderAvatar]}>
+                <Ionicons name="person-circle" size={100} color="#A5B4FC" />
+              </View>
+            )}
+          </View>
+          <LinearGradient
+            colors={['#6366F1', '#818CF8']}
+            style={styles.nameBadge}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+          >
+            <Text style={styles.name}>{profile.fullName}</Text>
+          </LinearGradient>
+          <View style={styles.rowInfo}>
+            <Ionicons name="bulb-outline" size={18} color="#6366F1" />
+            <Text style={styles.infoText}>{profile.learningStyle}</Text>
+          </View>
+          <View style={styles.skills}>
+            {profile.languagesKnown.map((skill, idx) => (
+              <View
+                style={[styles.tag, { backgroundColor: getLangColor(idx), borderColor: 'rgba(0,0,0,0.07)' }]}
+                key={idx}
+              >
+                <Text style={[styles.tagText, { color: "#fff", fontWeight: "bold" }]}>{skill}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.bio}>{profile.bio}</Text>
+          <View style={styles.rowInfo}>
+            <Ionicons name="calendar-outline" size={18} color="#6366F1" />
+            <Text style={styles.infoText}>{profile.availability}</Text>
+          </View>
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="school-outline" size={18} color="#6366F1" />
+              <Text style={styles.sectionTitle}>Wants to learn</Text>
+            </View>
             <View style={styles.skills}>
-                {profile.skills.map((skill: string, idx: number) => (
-                    <Text key={idx} style={styles.skillTag}>{skill}</Text>
-                ))}
-            </View>
-            <Text style={styles.bio}>{profile.bio}</Text>
-            <Text style={styles.availability}>🕒 {profile.availability}</Text>
-            <View style={styles.common}>
-                <Text style={styles.commonTitle}>👥 Common Interests</Text>
-                <View style={styles.skills}>
-                    {profile.interests.map((int: string, idx: number) => (
-                        <Text key={idx} style={[styles.skillTag, styles.commonTag]}>{int}</Text>
-                    ))}
+              {profile.languagesLearning.map((lang, idx) => (
+                <View
+                  style={[
+                    styles.tag,
+                    styles.learnTag,
+                    { backgroundColor: "#fff", borderColor: getLangColor(idx) }
+                  ]}
+                  key={idx}
+                >
+                  <Text style={[
+                    styles.tagText,
+                    styles.learnTagText,
+                    { color: getLangColor(idx), fontWeight: 'bold' }
+                  ]}>{lang}</Text>
                 </View>
+              ))}
             </View>
+          </View>
         </View>
+      </Animated.View>
     );
-};
+  };
+
+  const renderDots = () => (
+    <View style={styles.dotsRow}>
+      {profiles.map((_, idx) => (
+        <View
+          key={idx}
+          style={[
+            styles.dot,
+            idx === currentIndex ? styles.activeDot : {},
+            idx > currentIndex ? styles.upcomingDot : {},
+          ]}
+        />
+      ))}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Ionicons name="code-slash" size={22} color="#5A67D8" style={{ marginRight: 6 }} />
-          <Text style={styles.headerTitle}>Find Your Study Match</Text>
+          <Ionicons name="code-slash" size={26} color="#6366F1" style={{ marginRight: 7 }} />
+          <Text style={styles.headerTitle}>Study Partner Finder</Text>
         </View>
-        <TouchableOpacity onPress={() => alert('Filter coming soon')}>
-          <Feather name="filter" size={20} color="#1A202C" style={styles.filterIcon} />
+        <TouchableOpacity onPress={() => alert('Advanced filter coming soon')}>
+          <Feather name="sliders" size={22} color="#6366F1" style={styles.filterIcon} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.profilesLeft}>
-        <Ionicons name="people-outline" size={16} color="#5A67D8" />
-        <Text style={styles.profilesLeftText}>
-          {Math.max(profiles.length - currentIndex, 0)} profile
-          {profiles.length - currentIndex !== 1 ? 's' : ''} left today
-        </Text>
-      </View>
+      {renderDots()}
 
       <View style={styles.swiperZone}>
-        {currentIndex < profiles.length ? (
+        {loading ? (
+          <ActivityIndicator size="large" color="#6366F1" />
+        ) : currentIndex < profiles.length ? (
           <Swiper
             ref={swiperRef}
             cards={profiles}
@@ -156,11 +211,11 @@ const renderCard = (profile: Profile | null): React.ReactElement | null => {
             overlayLabels={{
               left: {
                 title: 'NOPE',
-                style: { label: { color: '#F56565', fontSize: 24, fontWeight: 'bold' } },
+                style: { label: { color: '#F56565', fontSize: 22, fontWeight: '700' } },
               },
               right: {
                 title: 'CONNECT',
-                style: { label: { color: '#48BB78', fontSize: 24, fontWeight: 'bold' } },
+                style: { label: { color: '#48BB78', fontSize: 22, fontWeight: '700' } },
               },
             }}
             infinite={false}
@@ -168,8 +223,8 @@ const renderCard = (profile: Profile | null): React.ReactElement | null => {
           />
         ) : (
           <View style={styles.noMoreContainer}>
-            <Ionicons name="sad-outline" size={48} color="#A0AEC0" />
-            <Text style={styles.noMoreText}>No more profiles left today!</Text>
+            <Ionicons name="rocket-outline" size={58} color="#6366F1" />
+            <Text style={styles.noMoreText}>No more profiles today.<Text style={{ color: "#6366F1" }}> Come back tomorrow!</Text></Text>
           </View>
         )}
       </View>
@@ -177,23 +232,21 @@ const renderCard = (profile: Profile | null): React.ReactElement | null => {
       <View style={styles.buttonsRow}>
         <TouchableOpacity
           onPress={handleLeftSwipe}
-          style={[styles.circleButton, { borderColor: '#F56565' }]}
+          style={[styles.circleButton, { borderColor: '#F56565', shadowColor: '#F56565' }]}
         >
-          <AntDesign name="close" size={28} color="#F56565" />
+          <AntDesign name="close" size={30} color="#F56565" />
         </TouchableOpacity>
-
         <TouchableOpacity
-          onPress={() => alert('Super Like coming soon')}
-          style={[styles.circleButton, { borderColor: '#ECC94B' }]}
+          onPress={() => alert('Super Like is premium')}
+          style={[styles.circleButton, { borderColor: '#FFD600', shadowColor: '#FFD600' }]}
         >
-          <AntDesign name="star" size={26} color="#ECC94B" />
+          <AntDesign name="star" size={28} color="#FFD600" />
         </TouchableOpacity>
-
         <TouchableOpacity
           onPress={handleRightSwipe}
-          style={[styles.circleButton, { borderColor: '#48BB78' }]}
+          style={[styles.circleButton, { borderColor: '#48BB78', shadowColor: '#48BB78' }]}
         >
-          <AntDesign name="check" size={28} color="#48BB78" />
+          <AntDesign name="check" size={30} color="#48BB78" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -203,7 +256,7 @@ const renderCard = (profile: Profile | null): React.ReactElement | null => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFF',
+    backgroundColor: '#F3F4F6',
   },
   header: {
     width: width * 0.9,
@@ -211,152 +264,220 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: 14,
+    marginBottom: 7,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A202C',
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#23224A',
   },
   filterIcon: {
-    backgroundColor: '#EDF2F7',
+    backgroundColor: '#E0E7FF',
     borderRadius: 20,
-    padding: 8,
+    padding: 10,
   },
-  profilesLeft: {
+  dotsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
+    justifyContent: 'center',
+    marginBottom: 12,
   },
-  profilesLeftText: {
-    marginLeft: 6,
-    color: '#1A202C',
-    fontSize: 13,
-    fontWeight: '500',
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 6,
+    backgroundColor: '#E0E7FF',
+    margin: 4,
+    opacity: 0.5,
+  },
+  activeDot: {
+    width: 22,
+    backgroundColor: '#6366F1',
+    opacity: 1,
+  },
+  upcomingDot: {
+    opacity: 0.25,
   },
   swiperZone: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Карточка стала чуть меньше, добавлен очень яркий box-shadow
   card: {
-    width: width * 0.9,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 12,
-    elevation: 5,
+    width: width * 0.85,
+    minHeight: height * 0.53,
+    backgroundColor: '#fff',
+    borderRadius: 28,
+    marginTop: 16,
+    shadowColor: '#6366F1',
+    shadowOpacity: 0.22,
+    shadowOffset: { width: 0, height: 24 },
+    shadowRadius: 32,
+    elevation: 18,
     alignSelf: 'center',
-    minHeight: height * 0.55,
-    justifyContent: 'flex-start',
+    overflow: 'visible',
+  },
+  gradient: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.09,
+    borderRadius: 28,
+  },
+  cardInner: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 30,
+  },
+  avatarWrap: {
+    backgroundColor: '#EEF2FF',
+    padding: 6,
+    borderRadius: 65,
+    borderWidth: 2,
+    borderColor: '#A5B4FC',
+    marginBottom: 10,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 4,
-    borderColor: '#5A67D8',
-    marginBottom: 16,
+    width: 98,
+    height: 98,
+    borderRadius: 65,
+    borderWidth: 2,
+    borderColor: '#818CF8',
     alignSelf: 'center',
+    backgroundColor: '#fff',
+  },
+  placeholderAvatar: {
+    backgroundColor: '#E0E7FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nameBadge: {
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 6,
+    marginBottom: 10,
+    alignSelf: 'center',
+    shadowColor: '#818CF8',
+    shadowOpacity: 0.23,
+    shadowRadius: 8,
+    elevation: 3,
   },
   name: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#1A202C',
+    fontWeight: 'bold',
+    color: '#fff',
+    letterSpacing: 0.3,
     textAlign: 'center',
-    marginBottom: 12,
+  },
+  rowInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 7,
+    marginBottom: 4,
+  },
+  infoText: {
+    marginLeft: 8,
+    fontSize: 15,
+    color: '#312E81',
+    fontWeight: '500',
   },
   skills: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
+    marginTop: 3,
   },
-  skillTag: {
-    backgroundColor: '#EDF2F7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
-    margin: 4,
-    fontSize: 14,
-    color: '#1A202C',
+  tag: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 13,
+    paddingVertical: 5,
+    borderRadius: 14,
+    margin: 3,
+    marginBottom: 6,
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
   },
-  commonTag: {
-    backgroundColor: '#C3DAFE',
-    color: '#3730A3',
+  tagText: {
+    color: '#fff',
     fontWeight: '600',
+    fontSize: 13.5,
+    letterSpacing: 0.1,
   },
-  bio: {
-    fontSize: 14,
-    color: '#4A5568',
-    textAlign: 'center',
-    marginBottom: 10,
+  learnTag: {
+    backgroundColor: '#fff',
   },
-  availability: {
-    fontSize: 14,
-    color: '#4A5568',
-    textAlign: 'center',
-    marginBottom: 12,
+  learnTagText: {
+    color: '#6366F1',
+    fontWeight: '700',
   },
-  common: {
-    marginTop: 10,
+  sectionBlock: {
+    alignSelf: 'stretch',
+    marginTop: 14,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E7FF',
     alignItems: 'center',
   },
-  commonTitle: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
+    gap: 5,
+  },
+  sectionTitle: {
+    marginLeft: 8,
+    fontSize: 14.2,
     fontWeight: '700',
-    fontSize: 14,
+    color: '#312E81',
+  },
+  bio: {
+    fontSize: 15.5,
+    color: '#5C5E76',
+    textAlign: 'center',
+    fontStyle: 'italic',
     marginBottom: 6,
-    color: '#1A202C',
+    marginTop: 7,
+    letterSpacing: 0.2,
+    fontWeight: '400',
   },
   buttonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    width: width * 0.7,
+    width: width * 0.78,
     alignSelf: 'center',
-    marginVertical: 20,
+    marginVertical: 22,
   },
   circleButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    backgroundColor: '#FFFFFF',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2.5,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.22,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 8,
   },
   noMoreContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    marginTop: 50,
   },
   noMoreText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#A0AEC0',
-    fontWeight: '600',
+    marginTop: 18,
+    fontSize: 19,
+    color: '#6366F1',
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.15,
   },
 });
