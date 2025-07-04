@@ -236,7 +236,16 @@ app.get("/users/swipe", async (req, res) => {
 
     const users = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(user => user.email !== req.query.excludeEmail)
+      .filter(user => 
+        user.email !== req.query.excludeEmail &&
+        (
+          user.bio ||
+          (Array.isArray(user.languagesKnown) && user.languagesKnown.length > 0) ||
+          (Array.isArray(user.languagesLearning) && user.languagesLearning.length > 0) ||
+          user.learningStyle ||
+          user.availability
+        )
+      )
       .map(user => ({
         id: user.id,
         fullName: user.fullName,
