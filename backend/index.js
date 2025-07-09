@@ -23,6 +23,8 @@ import {
   getDocs,
   addDoc,
   collection,
+  query,
+  where,
 } from "firebase/firestore";
 
 dotenv.config();
@@ -345,6 +347,36 @@ app.post("/forum/topics/:id/comments", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to add comment" });
   }
+});
+
+app.post("/users/:id/rate", async (req, res) => {
+  const { raterId, stars, comment } = req.body;
+  const userId = req.params.id;
+  if (!raterId || !stars || stars < 1 || stars > 5) return res.status(400).json({ error: "Invalid data" });
+
+  const ratingsRef = collection(db, "users", userId, "ratings");
+  const q = query(ratingsRef, where("raterId", "==", raterId));
+  const exist = await getDocs(q);
+  let ratingId = exist.empty ? Date.now().toString() : exist.docs[0].id;
+
+  await setDoc(doc(ratingsRef, ratingId), {
+    raterId,
+    stars,
+    comment: comment || "",
+    createdAt: new Date().toISOString(),
+  });
+
+  res.json({ success: true });
+});
+
+app.get("/users/:id/ratings", async (req, res) => {
+  const ratingsRef = collection(db, "users", req.params.id, "ratings");
+  const snap = await getDocs(ratingsRef);
+  const ratings = snap.docs.map(doc => doc.data());
+  const avg = ratings.length
+    ? (ratings.reduce((a, r) => a + r.stars, 0) / ratings.length).toFixed(2)
+    : null;
+  res.json({ ratings, average: avg, count: ratings.length });
 });
 
 app.use(session({ secret: "codeswap_secret", resave: false, saveUninitialized: false }));
