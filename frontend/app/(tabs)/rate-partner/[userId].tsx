@@ -19,10 +19,16 @@ import { getCredentials } from "../../../lib/auth";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://codeswap-3jvp.onrender.com";
 
+type Rating = {
+  raterId: string;
+  stars: number;
+  comment?: string;
+};
+
 export default function RatePartnerScreen() {
   const { userId, userName } = useLocalSearchParams() as { userId: string; userName: string };
 
-  const [myRating, setMyRating] = useState<{ stars: number; comment: string } | null>(null);
+  const [myRating, setMyRating] = useState<Rating | null>(null);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -30,11 +36,12 @@ export default function RatePartnerScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     (async () => {
       try {
         setLoading(true);
         const { email, password } = await getCredentials();
-        const userRes = await fetch(`${API_URL}/get_information`, {
+        const userRes = await fetch(${API_URL}/get_information, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
@@ -43,30 +50,50 @@ export default function RatePartnerScreen() {
         const me = userJson?.data;
         if (!me) throw new Error("Not authorized");
 
-        const ratingsRes = await fetch(`${API_URL}/users/${userId}/ratings`);
+        const ratingsRes = await fetch(${API_URL}/users/${userId}/ratings);
         const ratingsJson = await ratingsRes.json();
         const { ratings = [], average, count } = ratingsJson;
-        setStats({ average, count });
+        setStats({ average: average ? Number(average) : null, count: count ?? 0 });
 
-        const mine = ratings.find((r: { raterId: string; stars: number }) => r.raterId === me.id || r.raterId === me.email);
+        // Проверяем что рейтинг валидный (есть и stars, и raterId)
+        const mine = ratings.find(
+          (r: Rating) =>
+            (r.raterId === me.id || r.raterId === me.email) &&
+            typeof r.stars === "number" &&
+            r.stars >= 1 &&
+            r.stars <= 5
+        );
         if (mine) {
           setMyRating(mine);
           setStars(mine.stars);
-          setComment(mine.comment);
+          setComment(mine.comment ?? "");
+        } else {
+          setMyRating(null);
+          setStars(0);
+          setComment("");
         }
       } catch (e) {
-        Alert.alert("Error", e instanceof Error ? e.message : "Failed to load data");
+        if (isMounted) {
+          Alert.alert("Error", e instanceof Error ? e.message : "Failed to load data");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     })();
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
 
   async function submitRating() {
+    if (!stars) {
+      Alert.alert("Select your rating!");
+      return;
+    }
     setSubmitting(true);
     try {
       const { email, password } = await getCredentials();
-      const userRes = await fetch(`${API_URL}/get_information`, {
+      const userRes = await fetch(${API_URL}/get_information, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -75,19 +102,18 @@ export default function RatePartnerScreen() {
       const me = userJson?.data;
       if (!me) throw new Error("Not authorized");
       if ((me.id || me.email) === userId) throw new Error("Can't rate yourself");
-      if (!stars) throw new Error("Select your rating!");
 
-      const res = await fetch(`${API_URL}/users/${userId}/rate`, {
+      const res = await fetch(${API_URL}/users/${userId}/rate, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           raterId: me.id || me.email,
           stars,
           comment,
         }),
       });
       if (!res.ok) throw new Error("Failed to rate");
-      setMyRating({ stars, comment });
+      setMyRating({ raterId: me.id || me.email, stars, comment });
       Alert.alert("Thank you!", "Your rating has been submitted.");
     } catch (e) {
       Alert.alert("Error", e instanceof Error ? e.message : "Failed to submit rating");
@@ -105,19 +131,19 @@ export default function RatePartnerScreen() {
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
           <View style={styles.container}>
-            <Text style={styles.header}>Rate your study partner</Text>
+            <Text style={styles.header}>Rate your study{"\n"}partner</Text>
             <Text style={styles.userName}>{userName}</Text>
 
             {loading ? (
               <ActivityIndicator size="large" color="#6366F1" style={{ marginVertical: 22 }} />
             ) : stats ? (
               <Text style={styles.stats}>
-                Average: {stats.average ? stats.average.toFixed(2) : "-"} / 5  ({stats.count ?? 0} ratings)
+                Average: {stats.average !== null ? stats.average.toFixed(2) : "-"} / 5  ({stats.count ?? 0} ratings)
               </Text>
             ) : null}
 
             <View style={styles.starsRow}>
-              {[1,2,3,4,5].map(i =>
+              {[1, 2, 3, 4, 5].map(i => (
                 <TouchableOpacity
                   key={i}
                   onPress={() => !myRating && setStars(i)}
@@ -131,7 +157,7 @@ export default function RatePartnerScreen() {
                     style={{ margin: 7 }}
                   />
                 </TouchableOpacity>
-              )}
+              ))}
             </View>
 
             <TextInput
@@ -179,12 +205,13 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   header: {
-    fontSize: 29,
+    fontSize: 32,
     fontWeight: "900",
     color: "#23224A",
-    marginBottom: 6,
-    marginTop: 3,
+    marginBottom: 7,
+    marginTop: 2,
     alignSelf: "flex-start",
+    lineHeight: 38,
   },
   userName: {
     fontSize: 21,
@@ -203,7 +230,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 18,
     justifyContent: "center",
-    marginTop: 12,
+    marginTop: 13,
   },
   input: {
     backgroundColor: "#F3F4F6",
