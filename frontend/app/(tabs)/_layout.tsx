@@ -1,6 +1,14 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
+const icons: Record<string, string> = {
+  index: "home-outline",
+  "forum/forum": "chatbubble-outline",
+  features: "rocket-outline",
+  quiz: "help-circle-outline",
+  match: "people-outline",
+};
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -13,37 +21,23 @@ export default function TabLayout() {
           borderTopColor: "#333",
           height: 60,
         },
-        tabBarIcon: ({ color, size }) => {
-          const icons: Record<string, string> = {
-            index: "home",
-            forum: "chatbubbles",
-            features: "rocket",
-            sessions: "calendar",
-            quiz: "help-circle",
-            match: "people",
-            profile: "person",
-          };
-          return (
-            <Ionicons
-              name={(icons[route.name] ?? "ellipse") as any}
-              size={size}
-              color={color}
-            />
-          );
-        },
+        tabBarIcon: ({ color, size }) => (
+          <Ionicons
+            name={(icons[route.name] ?? "ellipse-outline") as any}
+            size={size}
+            color={color}
+          />
+        ),
       })}
     >
       <Tabs.Screen name="index" options={{ tabBarLabel: "Home" }} />
-      <Tabs.Screen name="forum" options={{ tabBarLabel: "Forum" }} />
-      <Tabs.Screen name="features" options={{ tabBarLabel: "Features" }} />
+      <Tabs.Screen name="forum/forum" options={{ tabBarLabel: "Forum" }} />
       <Tabs.Screen name="quiz" options={{ tabBarLabel: "Quiz" }} />
-      <Tabs.Screen name="match" options={{ tabBarLabel: "Match" }} /> 
-      <Tabs.Screen
-        name="profile"
-        options={{
-          href: null,
-        }}
-      />
+      <Tabs.Screen name="match" options={{ tabBarLabel: "Match" }} />
+
+      <Tabs.Screen name="forum/[id]" options={{ href: null }} />
+      <Tabs.Screen name="rate-partner/[userId]" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }

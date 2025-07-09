@@ -10,12 +10,14 @@ import {
   ActivityIndicator,
   Animated,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import Swiper from 'react-native-deck-swiper';
 import { Ionicons, AntDesign, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getCredentials } from '../../lib/auth';
 
 const { width, height } = Dimensions.get('window');
+const router = useRouter();
 
 const LANG_COLORS = [
   '#A5B4FC', // light indigo
@@ -57,7 +59,7 @@ export default function MatchScreen() {
           setLoading(false);
           return;
         }
-        const apiUrl = process.env.EXPO_PUBLIC_API_URL || "https://your-backend.com";
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL;
         const res = await fetch(`${apiUrl}/users/swipe?excludeEmail=${encodeURIComponent(email)}`);
         const data = await res.json();
         setProfiles(data);
@@ -85,83 +87,88 @@ export default function MatchScreen() {
     }
   };
 
-  // Цвет для языка по индексу (чтобы теги были разные)
   const getLangColor = (idx: number) =>
     LANG_COLORS[idx % LANG_COLORS.length];
 
   const renderCard = (profile: Profile | null): React.ReactElement | null => {
     if (!profile) return null;
     return (
-      <Animated.View style={styles.card}>
-        <LinearGradient
-          colors={['#6366F1', '#818CF8', '#fff']}
-          start={{ x: 0.1, y: 0.2 }}
-          end={{ x: 0.7, y: 0.9 }}
-          style={styles.gradient}
-        />
-        <View style={styles.cardInner}>
-          <View style={styles.avatarWrap}>
-            {profile.avatar ? (
-              <Image source={{ uri: profile.avatar }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.placeholderAvatar]}>
-                <Ionicons name="person-circle" size={100} color="#A5B4FC" />
-              </View>
-            )}
-          </View>
+      <TouchableOpacity
+      activeOpacity={0.91}
+      style={{ flex: 1 }}
+      onPress={() => router.push(`./rate-partner/${profile.id}`)}
+      >
+        <Animated.View style={styles.card}>
           <LinearGradient
-            colors={['#6366F1', '#818CF8']}
-            style={styles.nameBadge}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-          >
-            <Text style={styles.name}>{profile.fullName}</Text>
-          </LinearGradient>
-          <View style={styles.rowInfo}>
-            <Ionicons name="bulb-outline" size={18} color="#6366F1" />
-            <Text style={styles.infoText}>{profile.learningStyle}</Text>
-          </View>
-          <View style={styles.skills}>
-            {profile.languagesKnown.map((skill, idx) => (
-              <View
-                style={[styles.tag, { backgroundColor: getLangColor(idx), borderColor: 'rgba(0,0,0,0.07)' }]}
-                key={idx}
-              >
-                <Text style={[styles.tagText, { color: "#fff", fontWeight: "bold" }]}>{skill}</Text>
-              </View>
-            ))}
-          </View>
-          <Text style={styles.bio}>{profile.bio}</Text>
-          <View style={styles.rowInfo}>
-            <Ionicons name="calendar-outline" size={18} color="#6366F1" />
-            <Text style={styles.infoText}>{profile.availability}</Text>
-          </View>
-          <View style={styles.sectionBlock}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="school-outline" size={18} color="#6366F1" />
-              <Text style={styles.sectionTitle}>Wants to learn</Text>
+            colors={['#6366F1', '#818CF8', '#fff']}
+            start={{ x: 0.1, y: 0.2 }}
+            end={{ x: 0.7, y: 0.9 }}
+            style={styles.gradient}
+          />
+          <View style={styles.cardInner}>
+            <View style={styles.avatarWrap}>
+              {profile.avatar ? (
+                <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.placeholderAvatar]}>
+                  <Ionicons name="person-circle" size={100} color="#A5B4FC" />
+                </View>
+              )}
+            </View>
+            <LinearGradient
+              colors={['#6366F1', '#818CF8']}
+              style={styles.nameBadge}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+            >
+              <Text style={styles.name}>{profile.fullName}</Text>
+            </LinearGradient>
+            <View style={styles.rowInfo}>
+              <Ionicons name="bulb-outline" size={18} color="#6366F1" />
+              <Text style={styles.infoText}>{profile.learningStyle}</Text>
             </View>
             <View style={styles.skills}>
-              {profile.languagesLearning.map((lang, idx) => (
+              {profile.languagesKnown.map((skill, idx) => (
                 <View
-                  style={[
-                    styles.tag,
-                    styles.learnTag,
-                    { backgroundColor: "#fff", borderColor: getLangColor(idx) }
-                  ]}
+                  style={[styles.tag, { backgroundColor: getLangColor(idx), borderColor: 'rgba(0,0,0,0.07)' }]}
                   key={idx}
                 >
-                  <Text style={[
-                    styles.tagText,
-                    styles.learnTagText,
-                    { color: getLangColor(idx), fontWeight: 'bold' }
-                  ]}>{lang}</Text>
+                  <Text style={[styles.tagText, { color: "#fff", fontWeight: "bold" }]}>{skill}</Text>
                 </View>
               ))}
             </View>
+            <Text style={styles.bio}>{profile.bio}</Text>
+            <View style={styles.rowInfo}>
+              <Ionicons name="calendar-outline" size={18} color="#6366F1" />
+              <Text style={styles.infoText}>{profile.availability}</Text>
+            </View>
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="school-outline" size={18} color="#6366F1" />
+                <Text style={styles.sectionTitle}>Wants to learn</Text>
+              </View>
+              <View style={styles.skills}>
+                {profile.languagesLearning.map((lang, idx) => (
+                  <View
+                    style={[
+                      styles.tag,
+                      styles.learnTag,
+                      { backgroundColor: "#fff", borderColor: getLangColor(idx) }
+                    ]}
+                    key={idx}
+                  >
+                    <Text style={[
+                      styles.tagText,
+                      styles.learnTagText,
+                      { color: getLangColor(idx), fontWeight: 'bold' }
+                    ]}>{lang}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
           </View>
-        </View>
-      </Animated.View>
+        </Animated.View>
+      </TouchableOpacity>
     );
   };
 
@@ -307,7 +314,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Карточка стала чуть меньше, добавлен очень яркий box-shadow
   card: {
     width: width * 0.85,
     minHeight: height * 0.53,
