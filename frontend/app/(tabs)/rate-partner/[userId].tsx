@@ -41,7 +41,7 @@ export default function RatePartnerScreen() {
       try {
         setLoading(true);
         const { email, password } = await getCredentials();
-        const userRes = await fetch(${API_URL}/get_information, {
+        const userRes = await fetch(`${API_URL}/get_information`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
@@ -50,12 +50,11 @@ export default function RatePartnerScreen() {
         const me = userJson?.data;
         if (!me) throw new Error("Not authorized");
 
-        const ratingsRes = await fetch(${API_URL}/users/${userId}/ratings);
+        const ratingsRes = await fetch(`${API_URL}/users/${userId}/ratings`);
         const ratingsJson = await ratingsRes.json();
         const { ratings = [], average, count } = ratingsJson;
         setStats({ average: average ? Number(average) : null, count: count ?? 0 });
 
-        // Проверяем что рейтинг валидный (есть и stars, и raterId)
         const mine = ratings.find(
           (r: Rating) =>
             (r.raterId === me.id || r.raterId === me.email) &&
@@ -93,7 +92,7 @@ export default function RatePartnerScreen() {
     setSubmitting(true);
     try {
       const { email, password } = await getCredentials();
-      const userRes = await fetch(${API_URL}/get_information, {
+      const userRes = await fetch(`${API_URL}/get_information`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -103,7 +102,7 @@ export default function RatePartnerScreen() {
       if (!me) throw new Error("Not authorized");
       if ((me.id || me.email) === userId) throw new Error("Can't rate yourself");
 
-      const res = await fetch(${API_URL}/users/${userId}/rate, {
+      const res = await fetch(`${API_URL}/users/${userId}/rate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
